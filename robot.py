@@ -198,32 +198,36 @@ class IsaacBot(Player):
                 print("none king attacks strong enough. moving on")
         # 2nd priority - if in check, get out
         check_count = 0
+        check_board_list = []
         for b in self.boards:
             if b.is_check():
                 check_count += 1
+                check_board_list.append(b.copy())
         check_prob = check_count / len(self.boards)
         # if more than 5% of possible boards say we're in check, do something about it
         if check_prob > .05:
             print("might be in check. prob=", check_prob)
-            # TODO we probably still want to check for check, maybe ask Stockfish only about boards that are in check?
-            # all this will become obsolete vvv
-            move_dict = {}
-            for move in move_actions:
-                move_dict[move] = 0
-                # prioritize moves that are legal (means escape check) and capture somebody
-                for b in self.boards:
-                    if b.is_legal(move):
-                        move_dict[move] += 1
-                        if b.is_capture(move):
-                            move_dict[move] += .5
-            m = -1
-            bm = ''
-            for move in move_dict:
-                if move_dict[move] > m:
-                    m = move_dict[move]
-                    bm = move
-            print("gonna attempt to get out of check")
-            return bm
+            try:
+                move_dict = {}
+                for move in move_actions:
+                    move_dict[move] = 0
+                for board in check_board_list:
+                    result = self.engine.play(board, chess.engine.Limit(time=0.1))
+                    if result.move in move_actions:
+                        move_dict[result.move] += 1
+                best_move = ''
+                max_votes = -1
+                for move in move_dict:
+                    if move_dict[move] > max_votes:
+                        max_votes = move_dict[move]
+                        best_move = move
+                print("stockfish says", best_move, "is the best move with", max_votes, "votes")
+                return best_move
+            except chess.engine.EngineTerminatedError:
+                print('Stockfish Engine died')
+            except chess.engine.EngineError:
+                print('Stockfish Engine bad state at "{}"'.format(self.board.fen()))
+
         else:
             print("probably not in check. prob:", check_prob)
         # TODO replace these priorities with one call to Stockfish to vote on the best move
@@ -336,4 +340,8 @@ class IsaacBot(Player):
             print("i won!")
         else:
             print("i did not win")
-        pass
+        try:
+            # if the engine is already terminated then this call will throw an exception
+            self.engine.quit()
+        except chess.engine.EngineTerminatedError:
+            pass
