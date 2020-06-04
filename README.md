@@ -1,1 +1,1 @@
-# circuit2020_BYTES_OrderOfTheWhiteLotus_BagelBytes
+# Team Name: BagelBytes
