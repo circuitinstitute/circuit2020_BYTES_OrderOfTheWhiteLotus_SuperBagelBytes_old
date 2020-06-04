@@ -1,6 +1,10 @@
 import copy
 import random
 from reconchess import *
+import chess.engine
+import os
+
+STOCKFISH_ENV_VAR = 'STOCKFISH_EXECUTABLE'
 
 
 class IsaacBot(Player):
@@ -14,6 +18,18 @@ class IsaacBot(Player):
         # this is basically a list of all possible positions the board could be in at any given point
         self.boards = None
         self.count = 0
+        if STOCKFISH_ENV_VAR not in os.environ:
+            raise KeyError(
+                'TroutBot requires an environment variable called "{}" pointing to the Stockfish executable'.format(
+                    STOCKFISH_ENV_VAR))
+
+            # make sure there is actually a file
+        stockfish_path = os.environ[STOCKFISH_ENV_VAR]
+        if not os.path.exists(stockfish_path):
+            raise ValueError('No stockfish executable found at "{}"'.format(stockfish_path))
+
+        # initialize the stockfish engine
+        self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_path, setpgrp=True)
 
     def handle_game_start(self, color: Color, board: chess.Board, opponent_name: str):
         self.board = board
@@ -189,6 +205,8 @@ class IsaacBot(Player):
         # if more than 5% of possible boards say we're in check, do something about it
         if check_prob > .05:
             print("might be in check. prob=", check_prob)
+            # TODO we probably still want to check for check, maybe ask Stockfish only about boards that are in check?
+            # all this will become obsolete vvv
             move_dict = {}
             for move in move_actions:
                 move_dict[move] = 0
@@ -208,6 +226,7 @@ class IsaacBot(Player):
             return bm
         else:
             print("probably not in check. prob:", check_prob)
+        # TODO replace these priorities with one call to Stockfish to vote on the best move
         # 3rd priority - make check happen
         check_dict = {}
         for move in move_actions:
