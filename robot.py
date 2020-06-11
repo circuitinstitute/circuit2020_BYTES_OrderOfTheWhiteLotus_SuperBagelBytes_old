@@ -72,9 +72,10 @@ class IsaacBot(Player):
                 for b in bs:
                     # for each board, add to the list a new board for each possible move the opponent might have taken
                     for m in b.pseudo_legal_moves:
-                        nb = b.copy()
-                        nb.push(m)
-                        self.boards.append(nb)
+                        if not b.is_capture(m):
+                            nb = b.copy()
+                            nb.push(m)
+                            self.boards.append(nb)
             print("there are", len(self.boards), "possible boards")
             print("removing duplicate boards")
             # two paths of moves can lead to the same board, so remove duplicates
@@ -212,8 +213,8 @@ class IsaacBot(Player):
                 for move in move_actions:
                     move_dict[move] = 0
                 for board in check_board_list:
-                    result = self.engine.play(board, chess.engine.Limit(time=0.1))
-                    if result.move in move_actions:
+                    if board.is_valid():
+                        result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
                         move_dict[result.move] += 1
                 best_move = ''
                 max_votes = -1
@@ -230,16 +231,16 @@ class IsaacBot(Player):
 
         else:
             print("probably not in check. prob:", check_prob)
-        # TODO replace these priorities with one call to Stockfish to vote on the best move
-        # 3rd priority - make check happen
+        # ask stockfish what to do
         try:
             move_dict = {}
             for move in move_actions:
                 move_dict[move] = 0
             for board in self.boards:
-                result = self.engine.play(board, chess.engine.Limit(time=0.1))
-                if result.move in move_actions:
-                    move_dict[result.move] += 1
+                if board.is_valid():
+                    result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
+                    if result is not None:
+                        move_dict[result.move] += 1
             best_move = ''
             max_votes = -1
             for move in move_dict:
