@@ -232,64 +232,26 @@ class IsaacBot(Player):
             print("probably not in check. prob:", check_prob)
         # TODO replace these priorities with one call to Stockfish to vote on the best move
         # 3rd priority - make check happen
-        check_dict = {}
-        for move in move_actions:
-            check_dict[move] = 0
-            for b in self.boards:
-                if b.is_pseudo_legal(move) and b.gives_check(move):
-                    check_dict[move] += 1
-                    b.push(move)
-                    # if the move would checkmate, give it extra weight
-                    if b.is_checkmate():
-                        check_dict[move] += 1
-                    b.pop()
-            check_dict[move] /= len(self.boards)
-        ma = 0
-        bm = ''
-        for m in check_dict:
-            if check_dict[m] > ma:
-                ma = check_dict[m]
-                bm = m
-        if ma > .5:
-            print("attempting to check. prob =", ma)
-            return bm
-
-        # 4th priority - attack
-        am = None
-        max_lik = 0
-        for move in move_actions:
-            lik = 0
-            for b in self.boards:
-                if b.is_legal(move) and b.color_at(move.to_square) == (not self.color):
-                    lik += 1
-            if lik/len(self.boards) > max_lik:
-                max_lik = lik/len(self.boards)
-                am = move
-        # attack if there's a >50% chance it will work
-        # note there's no accounting for piece type or counterattacks - this might be good to add
-        if am is not None and max_lik > .5:
-            print("gonna try to attack! Likelihood =", max_lik)
-            return am
-
-        # 5th priority - random from most likely to be legal
-        print("most likely to be legal move")
-        # i got lazy with variable names - i'll fix it one day :(
-        d = {}
-        for move in move_actions:
-            lik = 0
-            for b in self.boards:
-                # prioritize legal moves because pseudo legal lets us put ourselves into check
-                if b.is_legal(move):
-                    lik += 2
-                elif b.is_pseudo_legal(move):
-                    lik += 1
-            d[move] = lik
-        maxi = max(d.values())
-        ms = []
-        for m in d:
-            if d[m] == maxi:
-                ms.append(m)
-        return random.choice(ms)
+        try:
+            move_dict = {}
+            for move in move_actions:
+                move_dict[move] = 0
+            for board in self.boards:
+                result = self.engine.play(board, chess.engine.Limit(time=0.1))
+                if result.move in move_actions:
+                    move_dict[result.move] += 1
+            best_move = ''
+            max_votes = -1
+            for move in move_dict:
+                if move_dict[move] > max_votes:
+                    max_votes = move_dict[move]
+                    best_move = move
+            print("stockfish says", best_move, "is the best move with", max_votes, "votes")
+            return best_move
+        except chess.engine.EngineTerminatedError:
+            print('Stockfish Engine died')
+        except chess.engine.EngineError:
+            print('Stockfish Engine bad state at "{}"'.format(self.board.fen()))
 
     def handle_move_result(self, requested_move: Optional[chess.Move], taken_move: Optional[chess.Move],
                            captured_opponent_piece: bool, capture_square: Optional[Square]):
