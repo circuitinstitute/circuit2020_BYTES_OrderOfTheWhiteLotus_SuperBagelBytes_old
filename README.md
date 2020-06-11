@@ -8,14 +8,15 @@ This bot makes its moves based on 3 priorities: <br>
 
 ## Requirements 
 
-Stockfish: <br>
+#####Stockfish: <br>
 
-    Download stockfish onto your local environment: 
+Download stockfish onto your local environment: 
     https://stockfishchess.org/  
-    Create an environment variable called STOCKFISH_EXECUTABLE that has the path to the Stockfish executable. 
+Create an environment variable called STOCKFISH_EXECUTABLE that has the path to the Stockfish executable. 
 
-Reconchess: <br>
-    Install the reconchess package.
+#####Reconchess: <br>
+
+Install the reconchess package.
     
    ` pip install reconchess`
     
