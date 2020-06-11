@@ -213,8 +213,8 @@ class IsaacBot(Player):
                 for move in move_actions:
                     move_dict[move] = 0
                 for board in check_board_list:
-                    result = self.engine.play(board, chess.engine.Limit(time=0.1))
-                    if result.move in move_actions:
+                    if board.is_valid():
+                        result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
                         move_dict[result.move] += 1
                 best_move = ''
                 max_votes = -1
@@ -237,9 +237,10 @@ class IsaacBot(Player):
             for move in move_actions:
                 move_dict[move] = 0
             for board in self.boards:
-                result = self.engine.play(board, chess.engine.Limit(time=0.1))
-                if result.move in move_actions:
-                    move_dict[result.move] += 1
+                if board.is_valid():
+                    result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
+                    if result is not None:
+                        move_dict[result.move] += 1
             best_move = ''
             max_votes = -1
             for move in move_dict:
