@@ -6,12 +6,12 @@ This bot makes its moves based on 3 priorities: <br>
    3. Revert to the stockfish engine to choose the best move <br>
 
 
-#Requirements 
+##Requirements 
 
 Stockfish: <br>
 
-    Download stockfish onto your local environment: <br>
-    https://stockfishchess.org/  <br>
+    Download stockfish onto your local environment: 
+    https://stockfishchess.org/  
     Create an environment variable called STOCKFISH_EXECUTABLE that has the path to the Stockfish executable. 
 
 Reconchess: <br>
