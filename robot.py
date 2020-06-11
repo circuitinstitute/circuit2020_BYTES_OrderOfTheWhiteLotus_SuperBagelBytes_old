@@ -72,9 +72,10 @@ class IsaacBot(Player):
                 for b in bs:
                     # for each board, add to the list a new board for each possible move the opponent might have taken
                     for m in b.pseudo_legal_moves:
-                        nb = b.copy()
-                        nb.push(m)
-                        self.boards.append(nb)
+                        if not b.is_capture(m):
+                            nb = b.copy()
+                            nb.push(m)
+                            self.boards.append(nb)
             print("there are", len(self.boards), "possible boards")
             print("removing duplicate boards")
             # two paths of moves can lead to the same board, so remove duplicates
@@ -230,8 +231,7 @@ class IsaacBot(Player):
 
         else:
             print("probably not in check. prob:", check_prob)
-        # TODO replace these priorities with one call to Stockfish to vote on the best move
-        # 3rd priority - make check happen
+        # ask stockfish what to do
         try:
             move_dict = {}
             for move in move_actions:
