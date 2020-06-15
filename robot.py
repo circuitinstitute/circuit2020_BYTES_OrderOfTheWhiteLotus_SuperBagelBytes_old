@@ -205,8 +205,8 @@ class IsaacBot(Player):
                 check_count += 1
                 check_board_list.append(b.copy())
         check_prob = check_count / len(self.boards)
-        # if more than 5% of possible boards say we're in check, do something about it
-        if check_prob > .05:
+        # if more than 2% of possible boards say we're in check, do something about it
+        if check_prob > .02:
             print("might be in check. prob=", check_prob)
             try:
                 move_dict = {}
@@ -215,7 +215,8 @@ class IsaacBot(Player):
                 for board in check_board_list:
                     if board.is_valid():
                         result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
-                        move_dict[result.move] += 1
+                        if result is not None:
+                            move_dict[result.move] += 1
                 best_move = ''
                 max_votes = -1
                 for move in move_dict:
