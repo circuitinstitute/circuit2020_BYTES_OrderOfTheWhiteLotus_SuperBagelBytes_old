@@ -158,6 +158,7 @@ class IsaacBot(Player):
         print("there are", len(self.boards), "possible boards")
 
     def choose_move(self, move_actions: List[chess.Move], seconds_left: float) -> Optional[chess.Move]:
+        print("time left:", seconds_left)
         # if the boards got screwed up we're screwed
         if len(self.boards) == 0:
             return random.choice(move_actions)
@@ -212,10 +213,11 @@ class IsaacBot(Player):
                 move_dict = {}
                 for move in move_actions:
                     move_dict[move] = 0
+                time_per_board = 10/len(check_board_list)
                 for board in check_board_list:
                     if board.is_valid():
-                        result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
-                        if result is not None:
+                        result = self.engine.play(board, chess.engine.Limit(time=time_per_board), root_moves=move_actions)
+                        if result.move is not None:
                             move_dict[result.move] += 1
                 best_move = ''
                 max_votes = -1
@@ -237,10 +239,11 @@ class IsaacBot(Player):
             move_dict = {}
             for move in move_actions:
                 move_dict[move] = 0
+            time_per_board = 10/len(self.boards)
             for board in self.boards:
                 if board.is_valid():
-                    result = self.engine.play(board, chess.engine.Limit(time=0.1), root_moves=move_actions)
-                    if result is not None:
+                    result = self.engine.play(board, chess.engine.Limit(time=time_per_board), root_moves=move_actions)
+                    if result.move is not None:
                         move_dict[result.move] += 1
             best_move = ''
             max_votes = -1
