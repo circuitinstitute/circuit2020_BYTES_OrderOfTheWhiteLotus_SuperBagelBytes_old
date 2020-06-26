@@ -1,5 +1,7 @@
 import copy
 import random
+import time
+
 from reconchess import *
 import chess.engine
 import os
@@ -18,6 +20,8 @@ class IsaacBot(Player):
         # this is basically a list of all possible positions the board could be in at any given point
         self.boards = None
         self.count = 0
+        self.log_string = ''
+        self.log_name = ''
         if STOCKFISH_ENV_VAR not in os.environ:
             raise KeyError(
                 'TroutBot requires an environment variable called "{}" pointing to the Stockfish executable'.format(
@@ -34,6 +38,8 @@ class IsaacBot(Player):
     def handle_game_start(self, color: Color, board: chess.Board, opponent_name: str):
         self.board = board
         self.color = color
+        self.log_name = opponent_name + str(int(time.time()))
+        self.log_string += 'Starting game with ' + opponent_name
         # start the board list with just one - a copy of the starting board
         self.boards = [board.copy()]
 
@@ -42,10 +48,13 @@ class IsaacBot(Player):
             # this is just to see if it's the first turn and we're white
             # if we are, skip handling opponent's move (no move to handle)
             self.count = 1
+            self.log_string += '\nstarting as white, skip move handling'
         else:
+            self.log_string += '\nhandling opponent move'
             print("my turn! lets see what happened")
             self.my_piece_captured_square = capture_square
             if captured_my_piece:
+                self.log_string += '\ngot captured'
                 print("i got got")
                 self.board.remove_piece_at(capture_square)
                 # make a copy because if we looped through self.boards, we couldn't delete
@@ -86,10 +95,12 @@ class IsaacBot(Player):
                 bd.set_fen(b)
                 self.boards.append(bd)
             print("there are", len(self.boards), "possible boards")
+            self.log_string += '\npossible boards: ' + str(len(self.boards))
 
     def choose_sense(self, sense_actions: List[Square], move_actions: List[chess.Move], seconds_left: float) -> \
             Optional[Square]:
         print("picking spot to look")
+        self.log_string += '\nchoosing sense spot'
         # picking an edge is a bad idea because you get a three by three square, so remove those as options
         for square, piece in self.board.piece_map().items():
             if piece.color == self.color:
@@ -134,10 +145,12 @@ class IsaacBot(Player):
                     max_ent = ent
                     max_act = act
         print("found a spot. entropy is", max_ent)
+        self.log_string += '\nfound a spot. entropy: ' + str(max_ent)
         return max_act
 
     def handle_sense_result(self, sense_result: List[Tuple[Square, Optional[chess.Piece]]]):
         print("updating boards")
+        self.log_string += '\nupdating boards'
         # keep only the boards which reflect our new knowledge
         bs = copy.deepcopy(self.boards)
         for b in bs:
@@ -156,11 +169,14 @@ class IsaacBot(Player):
                         self.boards.remove(b)
                         break
         print("there are", len(self.boards), "possible boards")
+        self.log_string += '\nboards possible: ' + str(len(self.boards))
 
     def choose_move(self, move_actions: List[chess.Move], seconds_left: float) -> Optional[chess.Move]:
         print("time left:", seconds_left)
+        self.log_string += '\nchoosing move. time left: ' + str(seconds_left)
         # if the boards got screwed up we're screwed
         if len(self.boards) == 0:
+            self.log_string += '\nno possible boards. uh oh.'
             return random.choice(move_actions)
         # first priority - if king can be gotten, get him
         king_dict = {}
@@ -177,6 +193,7 @@ class IsaacBot(Player):
                 enemy_king_square = square
         if enemy_king_square >= 0:
             print("found the king. probability he's here: ", king_dict[enemy_king_square])
+            self.log_string += '\nlocated king. probability: ' + str(king_dict[enemy_king_square])
             # likelihood dictionary - probability that a move would take the king
             lik_dict = {}
             for move in move_actions:
@@ -195,6 +212,7 @@ class IsaacBot(Player):
             # take the king only if there's a >50% chance it will work
             if maxlik > .5:
                 print("attempting king attack. prob =", maxlik)
+                self.log_string += '\nattempting king attack. prob: ' + str(maxlik)
                 return best_move
             else:
                 print("none king attacks strong enough. moving on")
@@ -207,6 +225,7 @@ class IsaacBot(Player):
                 check_board_list.append(b.copy())
         check_prob = check_count / len(self.boards)
         # if more than 2% of possible boards say we're in check, do something about it
+        self.log_string += '\ncheck probability: ' + str(check_prob)
         if check_prob > .02:
             print("might be in check. prob=", check_prob)
             try:
@@ -226,11 +245,14 @@ class IsaacBot(Player):
                         max_votes = move_dict[move]
                         best_move = move
                 print("stockfish says", best_move, "is the best move with", max_votes, "votes")
+                self.log_string += '\ncheck likely. move chosen and votes: ' + str(best_move) + ' ' + str(max_votes)
                 return best_move
             except chess.engine.EngineTerminatedError:
                 print('Stockfish Engine died')
+                self.log_string += '\nstockfish died'
             except chess.engine.EngineError:
                 print('Stockfish Engine bad state at "{}"'.format(self.board.fen()))
+                self.log_string += '\nstockfish bad state'
 
         else:
             print("probably not in check. prob:", check_prob)
@@ -252,15 +274,20 @@ class IsaacBot(Player):
                     max_votes = move_dict[move]
                     best_move = move
             print("stockfish says", best_move, "is the best move with", max_votes, "votes")
+            self.log_string += '\nstockfish has chosen ' + str(best_move) + ' with votes: ' + str(max_votes)
             return best_move
         except chess.engine.EngineTerminatedError:
+            self.log_string += '\nstockfish died'
             print('Stockfish Engine died')
         except chess.engine.EngineError:
+            self.log_string += '\nstockfish bad state'
             print('Stockfish Engine bad state at "{}"'.format(self.board.fen()))
 
     def handle_move_result(self, requested_move: Optional[chess.Move], taken_move: Optional[chess.Move],
                            captured_opponent_piece: bool, capture_square: Optional[Square]):
+        self.log_string += '\nprocessing move result'
         if captured_opponent_piece:
+            self.log_string += '\npiece captured'
             print("i caught someone!")
             bs = copy.deepcopy(self.boards)
             # if a board didn't expect a piece to be there, it wasn't correct
@@ -274,6 +301,7 @@ class IsaacBot(Player):
                 if b.is_capture(taken_move):
                     self.boards.remove(b)
         if taken_move != requested_move:
+            self.log_string += '\nmove taken different than requested'
             print("took a diff move than i wanted")
             bs = copy.deepcopy(self.boards)
             for b in bs:
@@ -289,6 +317,7 @@ class IsaacBot(Player):
                 b.push(taken_move)
         else:
             # if our move failed
+            self.log_string += '\nmove failed'
             print("uh oh")
             bs = copy.deepcopy(self.boards)
             for b in bs:
@@ -298,6 +327,7 @@ class IsaacBot(Player):
                 # this is to update their turn counters
                 b.push(chess.Move.null())
         print("there are", len(self.boards), "possible boards")
+        self.log_string += '\npossible boards: ' + str(len(self.boards))
         if len(self.boards) == 1:
             self.board = self.boards[0]
 
@@ -305,8 +335,12 @@ class IsaacBot(Player):
                         game_history: GameHistory):
         if winner_color == self.color:
             print("i won!")
+            self.log_string += '\ni won!'
         else:
             print("i did not win")
+            self.log_string += '\ni lost :('
+        with open(self.log_name,'w') as file:
+            file.write(self.log_string)
         try:
             # if the engine is already terminated then this call will throw an exception
             self.engine.quit()
